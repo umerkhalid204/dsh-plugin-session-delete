@@ -40,11 +40,11 @@ sidebar.workspaces      │  shell.overlay renders        ├─ agents.get(id) 
 
 ```sh
 # macOS (installed through Homebrew) or anywhere the dsh CLI is on PATH
-dsh plugin --profile desktop add github:umerkhalid204/dsh-plugin-session-delete#v1.0.1
+dsh plugin --profile desktop add github:umerkhalid204/dsh-plugin-session-delete#v1.0.2
 
 # Windows: the desktop app ships no CLI, so install one first
 npm install -g @deepseek-ai/dsh
-dsh plugin --profile desktop add github:umerkhalid204/dsh-plugin-session-delete#v1.0.1
+dsh plugin --profile desktop add github:umerkhalid204/dsh-plugin-session-delete#v1.0.2
 ```
 
 Then **quit and reopen the app**. The desktop app has no dev-server watcher, so
@@ -60,7 +60,7 @@ github:…`, list the package under `dsh.profile.bundles`, then restart.
 ### `dsh web` profiles
 
 ```sh
-dsh plugin --profile <profile> add github:umerkhalid204/dsh-plugin-session-delete#v1.0.1
+dsh plugin --profile <profile> add github:umerkhalid204/dsh-plugin-session-delete#v1.0.2
 dsh web --profile <profile>
 ```
 

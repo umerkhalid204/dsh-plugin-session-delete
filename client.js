@@ -98,7 +98,7 @@ window.__ModuleLoader__.load({
 .sd-menuitem:hover { background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-state-error-primary); }
 .sd-menuitem:focus-visible { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:-2px; }
 .sd-backdrop { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
-  padding:24px; background:rgba(12,14,18,.46); }
+  padding:24px; background:rgba(12,14,18,.46); pointer-events:auto; }
 .sd-dialog { width:min(440px,100%); display:flex; flex-direction:column; gap:10px; padding:18px;
   background:var(--dsw-alias-bg-overlay); border:1px solid var(--dsw-alias-border-l2); border-radius:12px;
   box-shadow:0 18px 48px rgba(12,14,18,.35); color:var(--dsw-alias-label-primary); font-size:13px; line-height:1.55; }

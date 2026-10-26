@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-session-delete",
-  "version": "1.0.1",
-  "description": "DeepSeek Harness plugin: permanently delete a session from the Web UI and from the agent — a Delete-session pill in the conversation header with a confirm dialog, plus the session_delete tool. Removes the persisted session log, the projection-cache row and the workspace accounting.",
+  "version": "1.0.2",
+  "description": "DeepSeek Harness plugin: permanently delete a session from the Web UI and from the agent \u2014 a Delete-session pill in the conversation header with a confirm dialog, plus the session_delete tool. Removes the persisted session log, the projection-cache row and the workspace accounting.",
   "type": "module",
   "license": "MIT",
   "author": "umerkhalid204",
@@ -51,7 +51,9 @@
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
   }
 }

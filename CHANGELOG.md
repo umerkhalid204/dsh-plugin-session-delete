@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.2
+
+- **Client: the confirm dialog now takes clicks.** `shell.overlay` is deliberately
+  click-through for the layer, with entries opting back in; the backdrop is the
+  opted-in entry, so it carries `pointer-events: auto`. Without it the dialog
+  rendered but every button press fell through to the app underneath.
+- The `v1.0.1` heading stays as the surface/route work it describes.
+
 ## v1.0.1
 
 Found in the desktop app (macOS): the row was registered in the page, yet there was
