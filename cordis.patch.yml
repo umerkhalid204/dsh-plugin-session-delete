@@ -1,0 +1,25 @@
+# dsh-plugin-session-delete bundle layer: inserts the Host row plus the Client row.
+#
+# The row id stays stable so your own profile patch can override it
+# (Settings → Plugins → Session Delete → Configure, or a `id: session-delete`
+# entry in your profile's cordis.patch.yml).
+#
+# Plain config knobs, read by index.js (no Config schema is declared: a plugin
+# that declares one must hand the Loader a validator object, and the row would
+# fail to activate on any Harness version whose validator shape differs):
+#
+#   sessionRoot  extra absolute (or ~/…) directory to search for session logs,
+#                for a deployment that points the JSONL backend somewhere else.
+#   stopAgent    false = never wait for a running agent to reach quiescence
+#                before deleting (default true).
+#   idleMs       cap on that quiescence wait (default 20000).
+#   sweepMs      settle delay before the second sweep that catches a teardown
+#                race; 0 disables it (default 500).
+- insert:
+    - id: session-delete
+      name: 'dsh-plugin-session-delete'
+      config:
+        sessionRoot: ''
+        stopAgent: true
+        idleMs: 20000
+        sweepMs: 500

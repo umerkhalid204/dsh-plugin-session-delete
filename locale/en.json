@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Delete",
+    "description": "Permanently deletes a session: a trash button in the conversation header opens a confirm dialog, and the session_delete tool does the same for agents. Removes the session log, its projection-cache row and its workspace row."
+  }
+}

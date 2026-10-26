@@ -1,0 +1,57 @@
+{
+  "name": "dsh-plugin-session-delete",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness plugin: permanently delete a session from the Web UI and from the agent — header trash button with a confirm dialog, plus the session_delete tool. Removes the persisted session log, the projection-cache row and the workspace accounting.",
+  "type": "module",
+  "license": "MIT",
+  "author": "umerkhalid204",
+  "homepage": "https://github.com/umerkhalid204/dsh-plugin-session-delete",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/umerkhalid204/dsh-plugin-session-delete.git"
+  },
+  "bugs": {
+    "url": "https://github.com/umerkhalid204/dsh-plugin-session-delete/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh-bundle",
+    "deepseek-harness",
+    "dsh",
+    "cordis",
+    "session",
+    "delete",
+    "plugin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+    }
+  }
+}
