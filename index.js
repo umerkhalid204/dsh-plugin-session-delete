@@ -42,10 +42,16 @@ import os from 'node:os'
 
 export const name = 'session-delete'
 
-// Nothing is a hard dependency: a terminal-only profile has no webServer, and a
-// profile without tools still gets the HTTP route. Every service is read with
-// ctx.get() and guarded.
-export const inject = []
+// `tools` is a hard dependency: Cordis holds this fiber until the service
+// exists, so the tool is present on a cold boot rather than only after a live
+// install. `webServer` deliberately is NOT a hard dependency — a terminal-only
+// profile has no Web carrier, and the tool must still work there. The route is
+// therefore registered through `ctx.inject`, which opens a child fiber the
+// moment the carrier appears. Reading it with `ctx.get()` alone is the classic
+// out-of-tree mistake: on a profile cold boot the carrier activates after this
+// row, `ctx.get` returns undefined, and the button silently has no endpoint
+// (GET 404, POST 405 with an empty body from the SPA fallback).
+export const inject = ['tools']
 
 const ROUTE_PATH = '/session-delete/api/delete'
 const MAX_BODY = 1 << 20
@@ -505,33 +511,57 @@ export function apply(ctx, config = {}) {
     })
   }, 'session-delete: tool')
 
-  ctx.effect(() => {
-    const web = ctx.get('webServer')
-    if (!web || typeof web.register !== 'function') return
-    return web.register({
-      kind: 'exact',
-      path: ROUTE_PATH,
-      handler: async (req, res) => {
-        if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method not allowed' })
-        let body = {}
-        try {
-          const raw = await readBody(req)
-          body = raw ? JSON.parse(raw) : {}
-        } catch {
-          return sendJson(res, 400, { ok: false, error: 'body must be JSON' })
-        }
-        if (body?.confirm !== true) {
-          return sendJson(res, 400, { ok: false, error: 'confirm must be true' })
-        }
-        try {
-          return sendJson(res, 200, plain(await deleteSession(ctx, options, body.sessionId)))
-        } catch (error) {
-          const status = error instanceof DeleteError ? error.status : 500
-          return sendJson(res, status, { ok: false, error: error instanceof Error ? error.message : String(error) })
-        }
-      },
+  whenAvailable(ctx, ['webServer'], (scope) => scope.webServer.register({
+    kind: 'exact',
+    path: ROUTE_PATH,
+    handler: async (req, res) => {
+      if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method not allowed' })
+      let body = {}
+      try {
+        const raw = await readBody(req)
+        body = raw ? JSON.parse(raw) : {}
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'body must be JSON' })
+      }
+      if (body?.confirm !== true) {
+        return sendJson(res, 400, { ok: false, error: 'confirm must be true' })
+      }
+      try {
+        return sendJson(res, 200, plain(await deleteSession(ctx, options, body.sessionId)))
+      } catch (error) {
+        const status = error instanceof DeleteError ? error.status : 500
+        return sendJson(res, status, { ok: false, error: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'session-delete: route')
+}
+
+/**
+ * Register once, on the owning service's own lifetime.
+ *
+ * `ctx.inject(deps, cb)` opens a child fiber as soon as every named service is
+ * live and disposes it when that service goes away, so a cold boot (the carrier
+ * appears after this row) still gets its route, a profile without the carrier
+ * simply never activates that half, and a (kind, path) duplicate is impossible
+ * because there is exactly one live registration per service generation.
+ */
+function whenAvailable(ctx, deps, register, label) {
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(deps, (scope) => {
+      scope.effect(() => register(scope), label)
     })
-  }, 'session-delete: route')
+    return
+  }
+  // A Context with no inject(): read once and report rather than fail silently.
+  const scope = {}
+  for (const dep of deps) {
+    scope[dep] = ctx.get(dep)
+    if (!scope[dep]) {
+      ctx.logger?.warn?.(`session-delete: neither ctx.inject nor the ${dep} service is available; the route is not registered`)
+      return
+    }
+  }
+  ctx.effect(() => register(scope), label)
 }
 
 /** Tool results must be lossless JSON. */

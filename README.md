@@ -5,7 +5,11 @@ A DeepSeek Harness plugin that adds a **real, permanent delete** for sessions
 disk forever, and the persistence seam says so in its own limitations
 (“Nothing deletes session files”). This plugin does the durable removal:
 
-- a **trash button in the conversation header** that opens a confirm dialog;
+- a **Delete session** pill next to the conversation title;
+- a **Delete session** row in every session row’s **“…” menu** in the sidebar, which
+  deletes a session you are not even looking at;
+- both open one **shared confirm dialog**, mounted in the frame-wide overlay layer (a menu
+  unmounts its own row when you click it, so the dialog cannot belong to the row);
 - a **`session_delete` agent tool** running the exact same operation;
 - on confirm it removes the **session log directory**, the **projection-cache
   row** and the **workspace accounting** for that id, and detaches the sidebar
@@ -16,53 +20,72 @@ disk forever, and the persistence seam says so in its own limitations
 Works in the Web profile and in the desktop client (same Web composition).
 
 ```
-browser                              host (Node)
-──────                               ───────────
-conversation.session.header.actions  POST /session-delete/api/delete
-  trash button ─ confirm dialog ────────►  { sessionId, confirm: true }
-  (own controls, --dsw-alias-* tokens) │
-                                       ├─ agents.get(id) → cancel, wait idle
-                                       ├─ sessionPersistence.flush()
-                                       ├─ workspaceRegistry.archiveSession(id)
-                                       ├─ rm <root>/<project>/<session id>/  (twice + verify)
-                                       ├─ storageDomain session_projcache → delete row
-                                       ├─ storageDomain workspace → strip leftovers
-                                       └─ sessionQuery.listSessions() → confirm it is gone
+browser                                       host (Node)
+──────                                        ───────────
+conversation.session.header.actions           POST /session-delete/api/delete
+  Delete session pill ──┐                        { sessionId, confirm: true }
+                        ├─ one request store
+sidebar.workspaces      │  shell.overlay renders        ├─ agents.get(id) → cancel, wait idle
+  .session.menu.item    │  the single confirm dialog    ├─ sessionPersistence.flush()
+  "…" row: Delete ──────┘                               ├─ workspaceRegistry.archiveSession(id)
+                                                        ├─ rm <root>/<project>/<session id>/  (twice + verify)
+                                                        ├─ storageDomain session_projcache → delete row
+                                                        ├─ storageDomain workspace → strip leftovers
+                                                        └─ sessionQuery.listSessions() → confirm it is gone
 ```
 
 ## Install
 
-From GitHub, into any profile (this is how you put it on your other computers):
+### Desktop app (macOS / Windows) — the profile is `desktop`
 
 ```sh
-dsh plugin --profile <profile> add github:umerkhalid204/dsh-plugin-session-delete
+# macOS (installed through Homebrew) or anywhere the dsh CLI is on PATH
+dsh plugin --profile desktop add github:umerkhalid204/dsh-plugin-session-delete#v1.0.1
+
+# Windows: the desktop app ships no CLI, so install one first
+npm install -g @deepseek-ai/dsh
+dsh plugin --profile desktop add github:umerkhalid204/dsh-plugin-session-delete#v1.0.1
+```
+
+Then **quit and reopen the app**. The desktop app has no dev-server watcher, so
+neither half changes in place: the Host half needs a fresh JavaScript module
+generation, and the Client half needs a fresh page. A profile restart
+(`dsh web --profile …`) is enough for the Web GUI.
+
+The profile lives in `~/.dsh/profiles/desktop` (macOS) or
+`%USERPROFILE%\.dsh\profiles\desktop` (Windows). `dsh plugin` only forwards to
+`pnpm` in that directory, so the same state is reached by hand: `pnpm add
+github:…`, list the package under `dsh.profile.bundles`, then restart.
+
+### `dsh web` profiles
+
+```sh
+dsh plugin --profile <profile> add github:umerkhalid204/dsh-plugin-session-delete#v1.0.1
+dsh web --profile <profile>
 ```
 
 `dsh plugin` forwards to `pnpm` inside the profile directory, and the package
 ships plain JavaScript with no dependencies and no build step, so nothing has to
 compile. The bundle's own `cordis.patch.yml` inserts the Loader row — you do not
-have to edit your profile patch at all. Restart the profile afterwards:
-
-```sh
-dsh web --profile <profile>      # or relaunch the desktop app
-```
-
-In the running app you can also install it from **Settings → Plugins**, or use
-the Plugin Manager tool from an agent session. From a checkout:
+have to edit your profile patch at all. From a checkout:
 
 ```sh
 dsh plugin --profile <profile> add file:/absolute/path/to/dsh-plugin-session-delete
 ```
 
-To pin a version, use the tag: `github:umerkhalid204/dsh-plugin-session-delete#v1.0.0`.
+Pin the tag (`#v1.0.1`) so every machine installs the identical artifact; an
+unpinned git dependency resolves to the default branch.
 
 ## Use
 
-1. Open a session. A trash icon appears next to the header title actions.
-2. Click it → **Delete permanently**.
-3. The dialog shows *Session deleted*; the row leaves the sidebar immediately.
+1. **From the open session:** a **Delete session** pill sits beside the conversation title.
+2. **From the sidebar:** open a session row’s **“…”** menu — the row **Delete session**
+   comes after the shipped Pin / Rename / Fork / Archive rows, and the dialog shows the
+   row’s title.
+3. Confirm with **Delete permanently**. The dialog reports *Session deleted*; the row
+   leaves the sidebar at once, and deleting the open session also leaves that panel.
 
-Agents can do the same thing:
+Agents run the same operation:
 
 ```
 session_delete { "sessionId": "session-14849223-bbde-4677-97ca-01b72328d774" }
@@ -129,12 +152,13 @@ no ghost “Ungrouped” row survives, and an agent tool for the same operation.
 
 ```
 dsh-plugin-session-delete/
-  package.json        # exports + dsh.bundle.patch + dsh.client declaration
-  cordis.patch.yml    # the Loader row this bundle contributes (id: session-delete)
-  index.js            # Host half: delete chain + HTTP route + session_delete tool
-  client.js           # Client half: __ModuleLoader__ factory, header cell + dialog
-  locale/{en,zh}.json # Plugin Manager title/description
-  icon.svg            # plugin artwork
+  package.json          # exports + dsh.bundle.patch + dsh.client declaration
+  cordis.patch.yml      # the Loader row this bundle contributes (id: session-delete)
+  index.js              # Host half: delete chain + HTTP route + session_delete tool
+  client.js             # Client half: __ModuleLoader__ factory, pill, menu row, overlay
+  locale/{en,zh}.json   # Plugin Manager title/description
+  icon.svg              # plugin artwork
+  test/render-smoke.mjs # headless render of every contribution (run by CI)
 ```
 
 ## Verification
@@ -152,6 +176,16 @@ It answers with what it removed, for example:
   "projectionCacheRemoved": true, "workspaceAccountingRemoved": true,
   "stoppedAgent": false, "stillListed": false }
 ```
+
+## Troubleshooting
+
+| What you see | What it means |
+|---|---|
+| Nothing beside the Session title | The Client half is not in the running page — restart the app (desktop) or reload the profile. Confirm the row is enabled under **Settings → Plugins → Session Delete**. An amber **⚠ Delete session** pill means the component itself crashed: the DevTools console then carries the `[dsh-plugin-session-delete]` line, and hovering the pill shows the reason. |
+| Dialog: *“This Harness has no Host route for the plugin…”* | The Host half activated before the Web carrier existed — the v1.0.0 cold-boot ordering bug. Upgrade to v1.0.1 and restart. |
+| `curl` on the route returns 404, or a POST returns 405 with an **empty** body | The route is not registered; those answers come from the SPA fallback, not from this plugin. A live route answers `405 {"ok":false,"error":"method not allowed"}` to a GET. |
+| Route answers `200` but the row comes back | The id was not found where you expected — the response lists `rootsChecked`. Point `config.sessionRoot` at the real persistence root. |
+| `no session artifacts found … (searched: …)` | Wrong root, already deleted, or an id typo. Set `sessionRoot` for a non-default JSONL root. |
 
 ## Limitations
 

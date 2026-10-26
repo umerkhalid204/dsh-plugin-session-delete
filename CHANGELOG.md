@@ -1,5 +1,41 @@
 # Changelog
 
+## v1.0.1
+
+Found in the desktop app (macOS): the row was registered in the page, yet there was
+nothing to click and the endpoint did not exist.
+
+- **Host: the route is registered through `ctx.inject(['webServer'], …)`.** v1.0.0 read
+  `ctx.get('webServer')` while activating. That is invisible after a live install — the
+  carrier is already up — and broken on every **cold boot**, where this row activates
+  before the Web carrier exists: nothing registered, so the button talked to the SPA
+  fallback (GET 404; POST 405 with an empty body). `tools` is now a hard `inject` too, so
+  the agent tool exists from the first boot instead of by luck of ordering.
+- **Client: two entry points, one dialog.** A labeled **Delete session** pill in the
+  conversation header *and* a **Delete session** row in every session row’s **“…” menu**
+  (`sidebar.workspaces.session.menu.item`, order 500, below the shipped
+  `pin`/`rename`/`fork`/`archive`/`session-id` rows), so a session can be deleted without
+  opening it. The confirm dialog moved to `shell.overlay`, the frame-wide floating layer: a
+  menu unmounts its own row the moment it is clicked, so a dialog owned by that row would
+  have vanished with it. The row title appears in the dialog, and deleting from the header
+  also leaves the open panel.
+- **Client: an error boundary owns every contribution.** A render crash used to leave an
+  empty entry with no trace; the header cell now shows an amber **Delete session
+  (unavailable)** pill whose tooltip carries the reason, and the console gets a
+  `[dsh-plugin-session-delete]` line — “not installed” and “crashed” are no longer the same
+  symptom.
+- **Client: props are only the documented ones** — `sessionId`, plus `displayTitle` in the
+  row menu. Nothing is invented: the original dereferenced `request`/`confirm`/
+  `useSessionDelete` props no slot ever passes, which blanked its cell.
+- **Client: a fallback-server answer is explained** — a 404 or an empty 405 now says the
+  Host route is absent and the profile needs a restart, instead of a bare status code.
+- **Test: `test/render-smoke.mjs`** materialises the client factory against a minimal React
+  and stub `slots`/`locale` services, then renders each contribution and asserts that the
+  pill, the `role="menuitem"` row, the confirmation dialog, and the crash fallback all
+  appear. CI runs it, so an artifact that installs but shows nothing cannot ship.
+- Docs: desktop-app install and restart guidance (the app has no dev-server watcher, so
+  both halves change only on an app restart), plus a troubleshooting table.
+
 ## v1.0.0
 
 First working edition, rebuilt against the Harness APIs this build actually

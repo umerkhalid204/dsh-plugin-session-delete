@@ -39,6 +39,9 @@ jobs:
             }
           '
 
+      - name: Client contributions render headlessly
+        run: node test/render-smoke.mjs
+
       - name: Bundle manifest declares the patch, the row and the client half
         run: |
           node -e '
