@@ -1,0 +1,93 @@
+name: verify
+
+# No npm publish and no build step: this package ships plain JavaScript, so the
+# most CI can prove is that every artifact a Harness install would load is
+# present, parseable, and in the form this Harness version requires.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Host half parses as ESM
+        run: node --check index.js
+
+      - name: Client half parses as a script
+        run: node --check client.js
+
+      - name: Client artifact is a loader factory that requires only react
+        run: |
+          node -e '
+            const source = require("fs").readFileSync("client.js", "utf8");
+            if (!source.includes("window.__ModuleLoader__.load")) {
+              throw new Error("client.js must register through window.__ModuleLoader__.load");
+            }
+            const required = [...source.matchAll(/require\((["\x27])([^"\x27]+)\1\)/g)].map((m) => m[2]);
+            const outside = required.filter((spec) => spec !== "react" && spec !== "react/jsx-runtime");
+            if (outside.length) {
+              throw new Error("requiring " + outside.join(", ") + " from the frozen Client module table throws at materialisation");
+            }
+          '
+
+      - name: Bundle manifest declares the patch, the row and the client half
+        run: |
+          node -e '
+            const pkg = require("./package.json");
+            if (!pkg.dsh || !pkg.dsh.bundle || !pkg.dsh.bundle.patch) throw new Error("dsh.bundle.patch is required");
+            if (!pkg.dsh.client || pkg.dsh.client.platform !== "web") throw new Error("dsh.client.platform must be web");
+            if (!pkg.exports || !pkg.exports["."] || !pkg.exports["./client"]) throw new Error("exports[\".\"] and exports[\"./client\"] are required");
+          '
+
+      - name: Patch inserts the Loader row this package owns
+        run: |
+          node -e '
+            const yaml = require("fs").readFileSync("cordis.patch.yml", "utf8");
+            if (!yaml.includes("insert:") || !yaml.includes("dsh-plugin-session-delete")) {
+              throw new Error("cordis.patch.yml must insert this package\u0027s Loader row");
+            }
+          '
+
+      - name: Display resources exist
+        run: |
+          node -e '
+            const fs = require("fs");
+            for (const file of ["locale/en.json", "locale/zh.json"]) {
+              const meta = JSON.parse(fs.readFileSync(file, "utf8")).meta;
+              if (!meta || !meta.title || !meta.description) throw new Error(file + " needs meta.title and meta.description");
+            }
+            if (!fs.readFileSync("icon.svg", "utf8").startsWith("<svg")) throw new Error("icon.svg is not an SVG");
+          '
+
+      - name: Shipped artifacts are all listed in package.json files
+        run: |
+          node -e '
+            const fs = require("fs");
+            const pkg = require("./package.json");
+            const needed = ["index.js", "client.js", "cordis.patch.yml", "icon.svg", "README.md", "LICENSE", "locale/en.json", "locale/zh.json"];
+            const patterns = pkg.files || [];
+            const covered = (file) => patterns.some((entry) => {
+              if (entry === file) return true;
+              if (entry.includes("*")) {
+                const pattern = new RegExp("^" + entry.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$");
+                return pattern.test(file);
+              }
+              return file === entry || file.startsWith(entry + "/");
+            });
+            for (const file of needed) {
+              if (!fs.existsSync(file)) throw new Error(file + " is missing from the checkout");
+              if (!covered(file)) throw new Error(file + " is not in package.json files, so it would not reach an install");
+            }
+            for (const entry of patterns) {
+              if (!entry.includes("*") && !fs.existsSync(entry)) throw new Error("files lists " + entry + ", which does not exist");
+            }
+          '
